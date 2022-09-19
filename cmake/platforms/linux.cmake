@@ -1,4 +1,18 @@
-install(TARGETS qv2ray RUNTIME DESTINATION bin)
+install(TARGETS qv2ray 
+RUNTIME DESTINATION bin
+LIBRARY DESTINATION lib
+ARCHIVE DESTINATION lib
+)
+
+set(APPS ${PROJECT_BINARY_DIR}/qv2ray)
+
+include(cmake/deployment.cmake)
+
+file(GLOB files "${PROJECT_BINARY_DIR}/lib*")
+install(FILES ${files} DESTINATION lib)
+# foreach(f ${files})
+#     install(FILES $)
+
 install(FILES ${CMAKE_SOURCE_DIR}/assets/qv2ray.metainfo.xml DESTINATION share/metainfo)
 install(FILES ${CMAKE_SOURCE_DIR}/assets/qv2ray.desktop DESTINATION share/applications)
 install(FILES ${CMAKE_SOURCE_DIR}/assets/icons/qv2ray.svg DESTINATION share/icons/hicolor/scalable/apps)
