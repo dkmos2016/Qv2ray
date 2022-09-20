@@ -42,6 +42,17 @@ ImportConfigWindow::ImportConfigWindow(QWidget *parent) : QvDialog("ImportWindow
             defaultItemIndex = groupCombo->count() - 1;
     }
     groupCombo->setCurrentIndex(defaultItemIndex);
+
+    // Type 增加类型列表
+    for (const auto &connectionType : getAllConnectionType())
+    {
+        QString protocol = getConnectionTypeString(connectionType);
+        importTypeCombo->addItem(protocol.toLower(), connectionType);
+    }
+
+    // importTypeCombo->model()->sort(0);
+    importTypeCombo->setCurrentIndex(defaultItemIndex);
+
 #if !QV2RAY_FEATURE(ui_has_import_qrcode)
     qrCodeTab->setVisible(false);
     tabWidget->removeTab(1);
@@ -51,6 +62,63 @@ ImportConfigWindow::ImportConfigWindow(QWidget *parent) : QvDialog("ImportWindow
 void ImportConfigWindow::updateColorScheme()
 {
     // Stub
+}
+
+/**
+ * VMESS Q_DECL_ENUMERATOR_DEPRECATED_X("VMess") = 0,     //
+        VLESS Q_DECL_ENUMERATOR_DEPRECATED_X("VLESS") = 1,     //
+        SSR Q_DECL_ENUMERATOR_DEPRECATED_X("Shadowsocks") = 2, //
+        HTTP Q_DECL_ENUMERATOR_DEPRECATED_X("HTTP"),           //
+        SOCKS Q_DECL_ENUMERATOR_DEPRECATED_X("SOCKS"),         //
+        FREEDOM Q_DECL_ENUMERATOR_DEPRECATED_X("Freedom"),     //
+        BLACKHOLE Q_DECL_ENUMERATOR_DEPRECATED_X("Blackhole"), //
+        DNS Q_DECL_ENUMERATOR_DEPRECATED_X("DNS"),             //
+        LOOPBACK Q_DECL_ENUMERATOR_DEPRECATED_X("Loopback"),   //
+ *
+ *
+ */
+QList<ImportConfigWindow::ConnectionTypeEnum> ImportConfigWindow::getAllConnectionType()
+{
+    QList<ConnectionTypeEnum> connectionTypeEnums;
+    connectionTypeEnums.append(ConnectionTypeEnum::VMESS);
+    connectionTypeEnums.append(ConnectionTypeEnum::VLESS);
+    connectionTypeEnums.append(ConnectionTypeEnum::SS);
+    connectionTypeEnums.append(ConnectionTypeEnum::SSR);
+    connectionTypeEnums.append(ConnectionTypeEnum::HTTP);
+    connectionTypeEnums.append(ConnectionTypeEnum::SOCKS);
+    connectionTypeEnums.append(ConnectionTypeEnum::FREEDOM);
+    connectionTypeEnums.append(ConnectionTypeEnum::BLACKHOLE);
+    connectionTypeEnums.append(ConnectionTypeEnum::DNS);
+    connectionTypeEnums.append(ConnectionTypeEnum::LOOPBACK);
+    return connectionTypeEnums;
+}
+
+QString ImportConfigWindow::getConnectionTypeString(uint type)
+{
+    switch (type)
+    {
+        case ConnectionTypeEnum::VMESS: return "VMess";
+
+        case ConnectionTypeEnum::VLESS: return "VLEss";
+
+        case ConnectionTypeEnum::SS: return "Shadowsocks";
+
+        case ConnectionTypeEnum::SSR: return "Shadowsocksr";
+
+        case ConnectionTypeEnum::HTTP: return "Http";
+
+        case ConnectionTypeEnum::SOCKS: return "SOCKS";
+
+        case ConnectionTypeEnum::FREEDOM: return "Freedom";
+
+        case ConnectionTypeEnum::BLACKHOLE: return "Blackhole";
+
+        case ConnectionTypeEnum::DNS: return "DNS";
+
+        case ConnectionTypeEnum::LOOPBACK: return "Loopback";
+
+        default: return "unsupport";
+    }
 }
 
 QvMessageBusSlotImpl(ImportConfigWindow)
@@ -189,75 +257,198 @@ void ImportConfigWindow::on_hideQv2rayCB_stateChanged(int arg1)
 }
 #endif
 
+void ImportConfigWindow::on_beginImportBtn_clicked_link_type_choice()
+{
+    uint type = importTypeCombo->currentData().toUInt();
+    switch (type)
+    {
+        case ConnectionTypeEnum::VMESS:
+        {
+            on_beginImportBtn_clicked_link_type_choice_v2ray();
+            return;
+        }
+        case ConnectionTypeEnum::SSR:
+        {
+            on_beginImportBtn_clicked_link_type_choice_ssr();
+            return;
+        }
+
+        case ConnectionTypeEnum::SS:
+        {
+            // on_beginImportBtn_clicked_link_type_choice_ssr();
+            QvMessageBoxWarn(nullptr, "on_beginImportBtn_clicked_link_type_choice", "unsupport now");
+            return;
+        }
+
+
+
+        case ConnectionTypeEnum::VLESS:
+
+        case ConnectionTypeEnum::HTTP:
+
+        case ConnectionTypeEnum::SOCKS:
+
+        case ConnectionTypeEnum::FREEDOM:
+
+        case ConnectionTypeEnum::BLACKHOLE:
+
+        case ConnectionTypeEnum::DNS:
+
+        case ConnectionTypeEnum::LOOPBACK:
+
+        default: return;
+    }
+}
+
+void ImportConfigWindow::on_beginImportBtn_clicked_link_type_choice_v2ray()
+{
+    // QvMessageBoxInfo(nullptr, "on_beginImportBtn_clicked_choice_v2ray", getConnectionTypeString(importTypeCombo->currentData().toUInt()));
+
+    QStringList linkList = SplitLines(vmessConnectionStringTxt->toPlainText());
+    //
+    // Clear UI and error lists
+    linkErrors.clear();
+    vmessConnectionStringTxt->clear();
+    errorsList->clear();
+    //
+    LOG(linkList.count(), "entries found.");
+
+    while (!linkList.isEmpty())
+    {
+        QString aliasPrefix = nameTxt->text();
+        const auto link = linkList.takeFirst().trimmed();
+        if (link.isEmpty() || link.startsWith("#") || link.startsWith("//"))
+            continue;
+
+        // warn if someone tries to import a https:// link
+        if (link.startsWith("https://"))
+        {
+            errorsList->addItem(tr("WARNING: You may have mistaken 'subscription link' with 'share link'"));
+        }
+
+        QString errMessage;
+        QString newGroupName;
+        const auto config = ConvertConfigFromString(link, &aliasPrefix, &errMessage, &newGroupName);
+
+        // If the config is empty or we have any err messages.
+        if (config.isEmpty() || !errMessage.isEmpty())
+        {
+            // To prevent duplicated values.
+            linkErrors[link] = QSTRN(linkErrors.count() + 1) + ": " + errMessage;
+            continue;
+        }
+        else if (newGroupName.isEmpty())
+        {
+            for (const auto &conf : config)
+            {
+                connectionsToExistingGroup[GroupId{ groupCombo->currentData().toString() }].insert(conf.first, conf.second);
+            }
+        }
+        else
+        {
+            for (const auto &conf : config)
+            {
+                connectionsToNewGroup[newGroupName].insert(conf.first, conf.second);
+            }
+        }
+    }
+
+    if (!linkErrors.isEmpty())
+    {
+        for (const auto &item : qAsConst(linkErrors))
+        {
+            vmessConnectionStringTxt->appendPlainText(linkErrors.key(item));
+            errorsList->addItem(item);
+        }
+
+        vmessConnectionStringTxt->setLineWidth(errorsList->lineWidth());
+        errorsList->sortItems();
+        return;
+    }
+}
+
+void ImportConfigWindow::on_beginImportBtn_clicked_link_type_choice_ssr()
+{
+
+    QString text = vmessConnectionStringTxt->toPlainText();
+    QString plainText = QString(QByteArray::fromBase64(text.toLocal8Bit()));
+    QStringList linkList = SplitLines(plainText);
+    QvMessageBoxInfo(nullptr, "on_beginImportBtn_clicked_link_type_choice_ssr", plainText);
+    //
+    // Clear UI and error lists
+    linkErrors.clear();
+    vmessConnectionStringTxt->clear();
+
+    errorsList->clear();
+    //
+    LOG(linkList.count(), "entries found.");
+
+    while (!linkList.isEmpty())
+    {
+        QString aliasPrefix = nameTxt->text();
+        const auto link = linkList.takeFirst().trimmed();
+        if (link.isEmpty() || link.startsWith("#") || link.startsWith("//"))
+            continue;
+
+        // warn if someone tries to import a https:// link
+        if (link.startsWith("https://"))
+        {
+            errorsList->addItem(tr("WARNING: You may have mistaken 'subscription link' with 'share link'"));
+        }
+
+        QString errMessage;
+        QString newGroupName;
+        // QvMessageBoxInfo(nullptr, "on_beginImportBtn_clicked_link_type_choice_ssr")
+        LOG(link);
+        const auto config = ConvertConfigFromString(link, &aliasPrefix, &errMessage, &newGroupName);
+
+        // If the config is empty or we have any err messages.
+        if (config.isEmpty() || !errMessage.isEmpty())
+        {
+            // To prevent duplicated values.
+            linkErrors[link] = QSTRN(linkErrors.count() + 1) + ": " + errMessage;
+            continue;
+        }
+        else if (newGroupName.isEmpty())
+        {
+            for (const auto &conf : config)
+            {
+                connectionsToExistingGroup[GroupId{ groupCombo->currentData().toString() }].insert(conf.first, conf.second);
+            }
+        }
+        else
+        {
+            for (const auto &conf : config)
+            {
+                connectionsToNewGroup[newGroupName].insert(conf.first, conf.second);
+            }
+        }
+    }
+
+    if (!linkErrors.isEmpty())
+    {
+        for (const auto &item : qAsConst(linkErrors))
+        {
+            vmessConnectionStringTxt->appendPlainText(linkErrors.key(item));
+            errorsList->addItem(item);
+        }
+
+        vmessConnectionStringTxt->setLineWidth(errorsList->lineWidth());
+        errorsList->sortItems();
+        return;
+    }
+}
+
 void ImportConfigWindow::on_beginImportBtn_clicked()
 {
     QString aliasPrefix = nameTxt->text();
 
+    // TAB 功能页面
     switch (tabWidget->currentIndex())
     {
         case LINK_PAGE:
         {
-            QStringList linkList = SplitLines(vmessConnectionStringTxt->toPlainText());
-            //
-            // Clear UI and error lists
-            linkErrors.clear();
-            vmessConnectionStringTxt->clear();
-            errorsList->clear();
-            //
-            LOG(linkList.count(), "entries found.");
-
-            while (!linkList.isEmpty())
-            {
-                aliasPrefix = nameTxt->text();
-                const auto link = linkList.takeFirst().trimmed();
-                if (link.isEmpty() || link.startsWith("#") || link.startsWith("//"))
-                    continue;
-
-                // warn if someone tries to import a https:// link
-                if (link.startsWith("https://"))
-                {
-                    errorsList->addItem(tr("WARNING: You may have mistaken 'subscription link' with 'share link'"));
-                }
-
-                QString errMessage;
-                QString newGroupName;
-                const auto config = ConvertConfigFromString(link, &aliasPrefix, &errMessage, &newGroupName);
-
-                // If the config is empty or we have any err messages.
-                if (config.isEmpty() || !errMessage.isEmpty())
-                {
-                    // To prevent duplicated values.
-                    linkErrors[link] = QSTRN(linkErrors.count() + 1) + ": " + errMessage;
-                    continue;
-                }
-                else if (newGroupName.isEmpty())
-                {
-                    for (const auto &conf : config)
-                    {
-                        connectionsToExistingGroup[GroupId{ groupCombo->currentData().toString() }].insert(conf.first, conf.second);
-                    }
-                }
-                else
-                {
-                    for (const auto &conf : config)
-                    {
-                        connectionsToNewGroup[newGroupName].insert(conf.first, conf.second);
-                    }
-                }
-            }
-
-            if (!linkErrors.isEmpty())
-            {
-                for (const auto &item : qAsConst(linkErrors))
-                {
-                    vmessConnectionStringTxt->appendPlainText(linkErrors.key(item));
-                    errorsList->addItem(item);
-                }
-
-                vmessConnectionStringTxt->setLineWidth(errorsList->lineWidth());
-                errorsList->sortItems();
-                return;
-            }
+            on_beginImportBtn_clicked_link_type_choice();
 
             break;
         }
