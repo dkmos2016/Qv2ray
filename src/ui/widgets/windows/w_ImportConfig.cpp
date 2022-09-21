@@ -104,9 +104,9 @@ QString ImportConfigWindow::getConnectionTypeString(uint type)
 
         case ConnectionTypeEnum::VLESS: return "VLEss";
 
-        case ConnectionTypeEnum::SS: return "Shadowsocks";
+        case ConnectionTypeEnum::SS: return "SS"; // return "Shadowsocks";
 
-        case ConnectionTypeEnum::SSR: return "Shadowsocksr";
+        case ConnectionTypeEnum::SSR: return "SSR"; // return "Shadowsocksr";
 
         case ConnectionTypeEnum::HTTP: return "Http";
 
