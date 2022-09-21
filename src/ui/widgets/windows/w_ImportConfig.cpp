@@ -52,6 +52,9 @@ ImportConfigWindow::ImportConfigWindow(QWidget *parent) : QvDialog("ImportWindow
 
     // importTypeCombo->model()->sort(0);
     importTypeCombo->setCurrentIndex(defaultItemIndex);
+    // connect(importTypeCombo, &QComboBox::currentIndexChanged, this, SLOT(on_importTypeCombo_currentIndexChanged()));
+    connect(importTypeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            [=](int index) { on_importTypeCombo_currentIndexChanged(importTypeCombo->itemData(index).toUInt()); });
 
 #if !QV2RAY_FEATURE(ui_has_import_qrcode)
     qrCodeTab->setVisible(false);
@@ -118,6 +121,33 @@ QString ImportConfigWindow::getConnectionTypeString(uint type)
         case ConnectionTypeEnum::LOOPBACK: return "Loopback";
 
         default: return "unsupport";
+    }
+}
+
+void ImportConfigWindow::on_importTypeCombo_currentIndexChanged(uint type)
+{
+    switch (type)
+    {
+        case ConnectionTypeEnum::SSR:
+        {
+            vmessConnectionStringTxt->setPlaceholderText("Paste share link here, one line for each. \nOr paste share link encoded by base64.");
+            break;
+        }
+
+        case ConnectionTypeEnum::VMESS:
+        case ConnectionTypeEnum::VLESS:
+        case ConnectionTypeEnum::SS:
+        case ConnectionTypeEnum::HTTP:
+        case ConnectionTypeEnum::SOCKS:
+        case ConnectionTypeEnum::FREEDOM:
+        case ConnectionTypeEnum::BLACKHOLE:
+        case ConnectionTypeEnum::DNS:
+        case ConnectionTypeEnum::LOOPBACK:
+        default:
+        {
+            vmessConnectionStringTxt->setPlaceholderText("Paste share link here, one line for each.");
+            break;
+        }
     }
 }
 
@@ -279,8 +309,6 @@ void ImportConfigWindow::on_beginImportBtn_clicked_link_type_choice()
             QvMessageBoxWarn(nullptr, "on_beginImportBtn_clicked_link_type_choice", "unsupport now");
             return;
         }
-
-
 
         case ConnectionTypeEnum::VLESS:
 

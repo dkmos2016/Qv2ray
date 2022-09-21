@@ -74,6 +74,8 @@ class ImportConfigWindow
     void on_jsonEditBtn_clicked();
     void on_selectFileBtn_clicked();
 
+    void on_importTypeCombo_currentIndexChanged(uint type);
+
   private:
     void updateColorScheme() override;
     QMap<QString, QString> linkErrors;
