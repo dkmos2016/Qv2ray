@@ -373,7 +373,7 @@ void ImportConfigWindow::on_beginImportBtn_clicked_link_type_choice_ssr()
     QString text = vmessConnectionStringTxt->toPlainText();
     QString plainText = QString(QByteArray::fromBase64(text.toLocal8Bit()));
     QStringList linkList = SplitLines(plainText);
-    QvMessageBoxInfo(nullptr, "on_beginImportBtn_clicked_link_type_choice_ssr", plainText);
+    // QvMessageBoxInfo(nullptr, "on_beginImportBtn_clicked_link_type_choice_ssr", plainText);
     //
     // Clear UI and error lists
     linkErrors.clear();
@@ -399,7 +399,7 @@ void ImportConfigWindow::on_beginImportBtn_clicked_link_type_choice_ssr()
         QString errMessage;
         QString newGroupName;
         // QvMessageBoxInfo(nullptr, "on_beginImportBtn_clicked_link_type_choice_ssr")
-        LOG(link);
+        // LOG(link);
         const auto config = ConvertConfigFromString(link, &aliasPrefix, &errMessage, &newGroupName);
 
         // If the config is empty or we have any err messages.
