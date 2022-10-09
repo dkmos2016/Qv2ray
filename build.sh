@@ -54,3 +54,5 @@ chmod +x ./linuxdeployqt-5-x86_64.AppImage
     -qmake=$QMAKE_PATH
 
 mv ./Qv2ray*.AppImage ./Qv2ray.AppImage
+
+echo "build done."
